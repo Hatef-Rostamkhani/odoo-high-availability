@@ -20,7 +20,7 @@ production readiness. The existing local deployment was preserved.
 | Security inventory | PASS: reports/SBOMs generated; Python and Odoo have zero HIGH/CRITICAL findings in this scan |
 | Security release gate | FAIL: PostgreSQL 17.11 has 95 HIGH and 4 CRITICAL package findings; see [inventory](security-inventory.md) |
 | Clean source packages/history | PASS: source archive and three Helm packages; verified SHA256SUMS and MIT notices; clean initial Git commit passed Gitleaks |
-| GitHub publication and Actions | IN PROGRESS: repository access and initial MIT license creation verified after a transient connector transport failure; full source publication and hosted checks are pending |
+| GitHub publication and Actions | PASS: 295 reviewed source files published with fresh public history; hosted CI and security inventory started; consult [Actions](https://github.com/Hatef-Rostamkhani/odoo-high-availability/actions) for their latest execution results |
 | GitHub protections | NOT APPLIED: reviewed policy files and administration script are prepared; remote settings have not been activated |
 
 The unit matrix targets Python 3.12/3.13; only the local runtime has been executed
