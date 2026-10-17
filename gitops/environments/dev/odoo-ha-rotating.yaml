@@ -1,0 +1,3 @@
+# Apply only after the static-credential HA profile and OpenBao/ESO migration pass.
+database:
+  credentialsMode: rotating

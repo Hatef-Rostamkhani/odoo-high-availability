@@ -1,0 +1,13 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: odoo-ha
+  namespace: postgres-ha
+  labels: {release: monitoring}
+spec:
+  selector:
+    matchLabels: {postgres-operator.crunchydata.com/cluster: odoo-ha}
+    matchExpressions:
+      - {key: postgres-operator.crunchydata.com/instance, operator: Exists}
+  podMetricsEndpoints:
+    - {port: exporter, interval: 15s}

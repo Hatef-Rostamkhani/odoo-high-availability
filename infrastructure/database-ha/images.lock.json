@@ -1,0 +1,22 @@
+[
+  {
+    "image": "registry.developers.crunchydata.com/crunchydata/postgres-operator:ubi9-6.0.2-0",
+    "digest": "sha256:056c46ce2888979fec60705778d3d819dbf503834190daa1816425cb0c22bf97",
+    "archive": ".cache/images/d873a62a952a4ddd232d1b7ab9e86651d1272fa4c6c2807c5e6677da9d51b61f.tar"
+  },
+  {
+    "image": "registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi9-17.10-2621",
+    "digest": "sha256:402cb6bccadadaecd619ac2ecdea238c8844831e6a8f4caf36b63e3fa79c4a49",
+    "archive": ".cache/images/127e16e45dd9a9cd094500740b7fd1762edec5bbb8ac4833d1464d64f6b0dabb.tar"
+  },
+  {
+    "image": "registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi9-2.58.0-2621",
+    "digest": "sha256:cfbd7926c9c2f33a42464328596c018b036c14d331add1170cd7f29c30f8ffde",
+    "archive": ".cache/images/de9c44bc2e93c326a79d6996a179b75428097f4cbc896229fb2164b05892d7a8.tar"
+  },
+  {
+    "image": "registry.developers.crunchydata.com/crunchydata/crunchy-postgres-exporter:ubi9-0.18.1-2621",
+    "digest": "sha256:243ba198803ce1e795f4cbee6d7ceb7743b972118e47cdc2d8cd1e1974a9cd6a",
+    "archive": ".cache/images/c0276e5e964b22759b0514c8912744865087197dc7c0ab97292dbff3ff075e3a.tar"
+  }
+]

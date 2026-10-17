@@ -1,0 +1,67 @@
+image: docker.io/library/odoo:19.0@sha256:dd9013e669caaa23d26765dc55814655eaeecca7cfc2c265dbabae913bce22fd
+imagePullPolicy: IfNotPresent
+replicaCount: 1
+application:
+  mode: single
+proxyMode: false
+geventPort: 8072
+dbMaxConnectionsGevent: 4
+workerMemory:
+  soft: 1342177280
+  hard: 1879048192
+cron:
+  dbMaxConnections: 4
+  enabled: false
+  replicaCount: 2
+  threads: 1
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 768Mi}
+database:
+  credentialsMode: static
+  host: postgresql
+  port: 5432
+  name: odoo_dev
+  user: odoo
+  existingSecret: odoo-database
+  sslmode: prefer
+  networkPeer: {}
+  backend: standalone
+  tls:
+    caSecret: ''
+    caKey: ca.crt
+credentialsSecret: odoo-credentials
+workers: 0
+cronThreads: 1
+dbMaxConnections: 16
+storage:
+  dataDir: /var/lib/odoo
+  accessModes: [ReadWriteOnce]
+  size: 5Gi
+  className: ''
+  existingClaim: ''
+resources:
+  requests:
+    cpu: 500m
+    memory: 768Mi
+  limits:
+    cpu: '2'
+    memory: 2Gi
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+nodeSelector: {}
+initialization:
+  enabled: true
+  modules: base,crm
+  syntheticData: false
+gateway:
+  enabled: false
+  parentName: ''
+  hostname: ''
+probes:
+  timeoutSeconds: 5

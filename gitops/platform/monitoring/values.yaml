@@ -1,0 +1,3 @@
+# Dependency settings live in environments/dev/monitoring.yaml.
+odooHA:
+  enabled: false

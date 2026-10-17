@@ -1,0 +1,47 @@
+initialization:
+  enabled: false
+cronThreads: 0
+database:
+  backend: crunchy
+  host: odoo-ha-primary.postgres-ha.svc
+  name: odoo_dev
+  port: 5432
+  user: odoo
+  sslmode: verify-full
+  existingSecret: odoo-ha-database
+  tls:
+    caSecret: odoo-ha-ca
+    caKey: ca.crt
+  networkPeer:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: postgres-ha
+    podSelector:
+      matchLabels:
+        postgres-operator.crunchydata.com/cluster: odoo-ha
+application:
+  mode: ha
+replicaCount: 2
+workers: 2
+dbMaxConnections: 3
+dbMaxConnectionsGevent: 4
+proxyMode: true
+workerMemory:
+  soft: 402653184
+  hard: 536870912
+cron:
+  enabled: true
+  replicaCount: 2
+  threads: 1
+  dbMaxConnections: 4
+storage:
+  existingClaim: odoo-shared-data
+  accessModes:
+  - ReadWriteMany
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: '2'
+    memory: 2Gi

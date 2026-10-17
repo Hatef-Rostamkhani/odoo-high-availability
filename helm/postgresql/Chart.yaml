@@ -1,0 +1,7 @@
+apiVersion: v2
+name: odoo-postgresql
+description: Single-instance PostgreSQL for isolated development
+type: application
+version: 0.1.0
+appVersion: "17.11"
+kubeVersion: ">=1.30.0-0"

@@ -1,0 +1,87 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: postgres-ha
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-internal
+  namespace: postgres-ha
+spec:
+  podSelector:
+    matchExpressions:
+    - key: postgres-operator.crunchydata.com/cluster
+      operator: Exists
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchExpressions:
+        - key: postgres-operator.crunchydata.com/cluster
+          operator: Exists
+    ports:
+    - port: 5432
+    - port: 8008
+    - port: 2022
+    - port: 8432
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: odoo-dev
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: odoo
+    ports:
+    - port: 5432
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - port: 9187
+  egress:
+  - to:
+    - podSelector:
+        matchExpressions:
+        - key: postgres-operator.crunchydata.com/cluster
+          operator: Exists
+    ports:
+    - port: 5432
+    - port: 8008
+    - port: 2022
+    - port: 8432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dns
+  namespace: postgres-ha
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP

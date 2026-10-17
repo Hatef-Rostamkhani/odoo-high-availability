@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: odoo-access
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: odoo}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    {{- if eq .Values.application.mode "ha" }}
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: odoo-edge}}
+          podSelector: {matchLabels: {app: odoo-edge}}
+      ports: [{protocol: TCP, port: 8069}, {protocol: TCP, port: 8072}, {protocol: TCP, port: 9116}]
+    {{- end }}
+    - from:
+        - podSelector: {matchLabels: {odoo.io/application-access: "true"}}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
+      ports: [{protocol: TCP, port: 8069}, {protocol: TCP, port: 9116}]
+  egress:
+    - to:
+        {{- if .Values.database.networkPeer }}
+        - {{ toYaml .Values.database.networkPeer | nindent 10 }}
+        {{- else if eq .Values.database.backend "crunchy" }}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: postgres-ha}}
+          podSelector: {matchLabels: {postgres-operator.crunchydata.com/cluster: odoo-ha}}
+        {{- else }}
+        - podSelector: {matchLabels: {app.kubernetes.io/name: postgresql}}
+        {{- end }}
+      ports: [{protocol: TCP, port: 5432}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+          podSelector: {matchLabels: {k8s-app: kube-dns}}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]

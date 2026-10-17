@@ -1,0 +1,7 @@
+apiVersion: v2
+name: odoo
+description: Portable single-replica Odoo development deployment
+type: application
+version: 0.1.0
+appVersion: "19.0"
+kubeVersion: ">=1.30.0-0"

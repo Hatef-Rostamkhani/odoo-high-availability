@@ -1,0 +1,152 @@
+global:
+  image:
+    tag: v3.5.4
+dex:
+  enabled: false
+notifications:
+  enabled: false
+applicationSet:
+  replicas: 0
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+controller:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: '1'
+      memory: 768Mi
+  clusterRoleRules:
+    enabled: true
+    rules: &id001
+    - apiGroups:
+      - ''
+      resources:
+      - nodes
+      - namespaces
+      - persistentvolumes
+      verbs:
+      - get
+      - list
+      - watch
+    - apiGroups:
+      - apiextensions.k8s.io
+      resources:
+      - customresourcedefinitions
+      verbs:
+      - get
+      - list
+      - watch
+server:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  clusterRoleRules:
+    enabled: true
+    rules: *id001
+  service:
+    type: ClusterIP
+repoServer:
+  resources:
+    requests:
+      cpu: 150m
+      memory: 256Mi
+    limits:
+      cpu: '1'
+      memory: 768Mi
+redis:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+configs:
+  cm:
+    exec.enabled: false
+    timeout.reconciliation: 120s
+    resource.inclusions: |
+      - apiGroups:
+        - ''
+        kinds:
+        - ConfigMap
+        - Service
+        - ServiceAccount
+        - PersistentVolumeClaim
+        - Pod
+        - Event
+      - apiGroups:
+        - apps
+        kinds:
+        - Deployment
+        - StatefulSet
+        - DaemonSet
+        - ReplicaSet
+      - apiGroups:
+        - batch
+        kinds:
+        - Job
+        - CronJob
+      - apiGroups:
+        - networking.k8s.io
+        kinds:
+        - NetworkPolicy
+      - apiGroups:
+        - policy
+        kinds:
+        - PodDisruptionBudget
+      - apiGroups:
+        - rbac.authorization.k8s.io
+        kinds:
+        - Role
+        - RoleBinding
+        - ClusterRole
+        - ClusterRoleBinding
+      - apiGroups:
+        - monitoring.coreos.com
+        kinds:
+        - Prometheus
+        - Alertmanager
+        - ServiceMonitor
+        - PodMonitor
+        - PrometheusRule
+        - Probe
+        - ScrapeConfig
+        - AlertmanagerConfig
+      - apiGroups:
+        - postgres-operator.crunchydata.com
+        kinds:
+        - PostgresCluster
+      - apiGroups:
+        - cilium.io
+        kinds:
+        - CiliumNetworkPolicy
+      - apiGroups:
+        - external-secrets.io
+        kinds:
+        - ExternalSecret
+        - SecretStore
+      - apiGroups:
+        - apiextensions.k8s.io
+        kinds:
+        - CustomResourceDefinition
+      - apiGroups:
+        - admissionregistration.k8s.io
+        kinds:
+        - ValidatingWebhookConfiguration
+    resource.respectRBAC: strict
+  rbac:
+    policy.default: role:readonly
+redis-ha:
+  enabled: false

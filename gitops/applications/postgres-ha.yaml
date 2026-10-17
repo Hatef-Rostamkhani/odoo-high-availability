@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgres-ha
+  namespace: argocd
+spec:
+  project: odoo-database-ha
+  source:
+    repoURL: git://local-git.gitops-system.svc.cluster.local:9418/odoo-platform.git
+    targetRevision: main
+    path: infrastructure/database-ha
+  destination:
+    namespace: postgres-ha
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    syncOptions:
+    - Prune=false
+    - RespectIgnoreDifferences=true
+  ignoreDifferences:
+  - group: postgres-operator.crunchydata.com
+    kind: PostgresCluster
+    name: odoo-ha
+    jsonPointers:
+    - /spec/backups/pgbackrest/manual
+    - /metadata/annotations/postgres-operator.crunchydata.com~1pgbackrest-backup

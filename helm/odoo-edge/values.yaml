@@ -1,0 +1,14 @@
+image: docker.io/library/haproxy:3.2.25-alpine@sha256:168a5e3984df24054946c94fb7d29d785c7ed1af8ce11ea4b33253221c8c85c8
+replicaCount: 2
+backendNamespace: odoo-dev
+serviceType: NodePort
+nodePort: 30669
+entryCIDR: 172.18.0.250/32
+dnsServer: 10.96.0.10
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 300m
+    memory: 128Mi

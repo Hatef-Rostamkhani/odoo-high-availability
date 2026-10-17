@@ -1,0 +1,28 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: openbao-members
+  namespace: openbao
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openbao
+      component: server
+  podMetricsEndpoints:
+  - port: https
+    interval: 5s
+    scrapeTimeout: 4s
+    scheme: https
+    path: /v1/sys/metrics
+    params:
+      format:
+      - prometheus
+    tlsConfig:
+      ca:
+        secret:
+          name: openbao-ca
+          key: ca.crt
+      serverName: openbao.openbao.svc
+      insecureSkipVerify: false

@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-git
+  namespace: gitops-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: local-git
+  template:
+    metadata:
+      labels:
+        app: local-git
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: odoo-dev-control-plane
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: git-daemon
+        image: quay.io/argoproj/argocd:v3.5.4
+        imagePullPolicy: IfNotPresent
+        command:
+        - git
+        - daemon
+        - --reuseaddr
+        - --base-path=/repo
+        - --export-all
+        - --strict-paths
+        - --enable=upload-pack
+        - --disable=receive-pack
+        - --disable=upload-archive
+        - --listen=0.0.0.0
+        - --port=9418
+        - /repo/odoo-platform.git
+        ports:
+        - name: git
+          containerPort: 9418
+        resources:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        readinessProbe:
+          tcpSocket:
+            port: git
+          periodSeconds: 5
+        volumeMounts:
+        - name: repository
+          mountPath: /repo
+          readOnly: true
+      volumes:
+      - name: repository
+        hostPath:
+          path: /var/local/odoo/git
+          type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: local-git
+  namespace: gitops-system
+spec:
+  selector:
+    app: local-git
+  ports:
+  - name: git
+    port: 9418
+    targetPort: git
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: local-git-read-only
+  namespace: gitops-system
+spec:
+  podSelector:
+    matchLabels:
+      app: local-git
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: argocd
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-repo-server
+    ports:
+    - protocol: TCP
+      port: 9418
+  egress: []

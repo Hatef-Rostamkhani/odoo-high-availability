@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: odoo-edge}
+data:
+  haproxy.cfg: |
+    global
+      nbthread 1
+      log stdout format raw local0
+      maxconn 1024
+    defaults
+      log global
+      mode http
+      log-format "%ST %Ta %s"
+      timeout connect 2s
+      timeout client 720s
+      timeout server 720s
+      timeout tunnel 1h
+      timeout check 1s
+      retries 0
+    resolvers kubernetes
+      nameserver dns {{ .Values.dnsServer }}:53
+      resolve_retries 3
+      timeout resolve 1s
+      timeout retry 1s
+      hold valid 2s
+      hold nx 2s
+      hold obsolete 2s
+      accepted_payload_size 8192
+    frontend http
+      bind :8080
+      monitor-uri /_edge/ready
+      http-request set-header X-Forwarded-Proto http
+      http-request set-header X-Forwarded-Host %[req.hdr(host)]
+      http-request set-header X-Forwarded-For %[src]
+      acl websocket path_beg /websocket
+      use_backend websocket if websocket
+      default_backend odoo
+    frontend metrics
+      bind :9090
+      http-request use-service prometheus-exporter if { path /metrics }
+      http-request deny
+    backend odoo
+      balance roundrobin
+      option httpchk
+      http-check send meth GET uri /ready ver HTTP/1.1 hdr Host 127.0.0.1:9116
+      http-check expect status 200
+      server-template web 4 odoo-headless.{{ .Values.backendNamespace }}.svc.cluster.local:8069 check port 9116 inter 1s fall 2 rise 2 resolvers kubernetes init-addr none
+    backend websocket
+      balance roundrobin
+      option httpchk
+      http-check send meth GET uri /ready ver HTTP/1.1 hdr Host 127.0.0.1:9116
+      http-check expect status 200
+      server-template websocket 4 odoo-headless.{{ .Values.backendNamespace }}.svc.cluster.local:8072 check port 9116 inter 1s fall 2 rise 2 resolvers kubernetes init-addr none

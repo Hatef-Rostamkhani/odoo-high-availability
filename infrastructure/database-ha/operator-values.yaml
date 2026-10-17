@@ -1,0 +1,13 @@
+singleNamespace: true
+debug: false
+replicas: 1
+resources:
+  controller:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+controllerImages:
+  cluster: registry.developers.crunchydata.com/crunchydata/postgres-operator:ubi9-6.0.2-0@sha256:056c46ce2888979fec60705778d3d819dbf503834190daa1816425cb0c22bf97

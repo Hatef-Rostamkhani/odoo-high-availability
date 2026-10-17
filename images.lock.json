@@ -1,0 +1,30 @@
+{
+  "architecture": "linux/amd64",
+  "references": [
+    "docker.io/alpine/socat:1.8.1.3@sha256:24220ef2c80a2a421ea08e4624488e985330c421b6aa3329bae14b0933a1d403",
+    "docker.io/grafana/grafana:13.2.3-distroless",
+    "docker.io/library/odoo:19.0@sha256:dd9013e669caaa23d26765dc55814655eaeecca7cfc2c265dbabae913bce22fd",
+    "docker.io/library/postgres:17.11-bookworm@sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826",
+    "ecr-public.aws.com/docker/library/redis:8.6.4-alpine",
+    "gcr.io/k8s-staging-gateway-api/echo-advanced:v20251204-v1.4.1",
+    "quay.io/argoproj/argocd:v3.5.4",
+    "quay.io/cilium/alpine-curl:v1.10.0@sha256:913e8c9f3d960dde03882defa0edd3a919d529c2eb167caa7f54194528bde364",
+    "quay.io/cilium/cilium:v1.20.2@sha256:2939231d0d3e3ebddcd80fffa168b7ddcc78fdf0dc864d1c8c126ff523c54f01",
+    "quay.io/cilium/hubble-relay:v1.20.2@sha256:d309c977870e9dbede7122a10eee09a4c9d66685e8d52af62d9c3c113f815b0f",
+    "quay.io/cilium/hubble-ui-backend:v0.13.6@sha256:83b3fc763f3d49948c306bf49b08277383e195904b9ca5c0c0022b2112628787",
+    "quay.io/cilium/hubble-ui:v0.13.6@sha256:049a80a03585c043d0c3121bdc518c72b0fd42bae07e4bcce0fdb8f1e88041d0",
+    "quay.io/cilium/json-mock:v1.4.1@sha256:6a66df90808a39c02e7a9d58af7bf0e54d8f8b7d4bc528f48c891969a7049195",
+    "quay.io/cilium/operator-generic:v1.20.2@sha256:64d8798350e8569b8e7622563fed6e44dce2625f311e4651b774816516c744fc",
+    "quay.io/cilium/test-connection-disruption:v0.0.18@sha256:1666bbed3eb6f0e3074b366fbf701a5ea7206a946fa2a9fd4efff738bae2d1f9",
+    "quay.io/frrouting/frr:10.7.1@sha256:e995beaa50fdc9edb35eadcfefa29b7f062cc06f2b812613789b68fa541554d2",
+    "quay.io/kiwigrid/k8s-sidecar:2.14.1",
+    "quay.io/prometheus-operator/prometheus-operator:v0.94.1",
+    "quay.io/prometheus/prometheus:v3.15.0-distroless",
+    "registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi9-2.58.0-2621",
+    "registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi9-17.10-2621",
+    "registry.k8s.io/coredns/coredns:v1.14.7@sha256:7efd3c635b03efd68c4e8398fc45f0d993d0e9ab016f72c1cefb0fd6d01aa286",
+    "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0",
+    "registry.k8s.io/metrics-server/metrics-server:v0.9.0"
+  ],
+  "policy": "Pinned release tags or upstream digest references; no latest. Host cache resolves the reference and imports it into every node."
+}

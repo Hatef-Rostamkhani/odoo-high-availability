@@ -1,0 +1,39 @@
+{
+  "cilium": {
+    "version": "1.20.2",
+    "url": "https://helm.cilium.io/cilium-1.20.2.tgz",
+    "sha256": "b2afd87b7f75f875f92a14559f14f59b7babbb479d968e3fd625a20bf30ec20e",
+    "path": "vendor/cilium-1.20.2.tgz"
+  },
+  "argo-cd": {
+    "version": "10.10.2",
+    "url": "https://github.com/argoproj/argo-helm/releases/download/argo-cd-10.10.2/argo-cd-10.10.2.tgz",
+    "sha256": "1f2bdb0e23b87fdac5222d99d1acf6964e670db9bf63912c58ab4677e505638b",
+    "path": "vendor/argo-cd-10.10.2.tgz"
+  },
+  "kube-prometheus-stack": {
+    "version": "92.3.0",
+    "url": "https://github.com/prometheus-community/helm-charts/releases/download/kube-prometheus-stack-92.3.0/kube-prometheus-stack-92.3.0.tgz",
+    "sha256": "48399b911fa91b353e0c3d5e32c1cb7a67a168566549723553154ffd7be5d1fa",
+    "path": "vendor/kube-prometheus-stack-92.3.0.tgz"
+  },
+  "pgo": {
+    "version": "6.0.2",
+    "url": "oci://registry.developers.crunchydata.com/crunchydata/pgo",
+    "oci_digest": "sha256:161c722234b0824771e36773f279f2cf228c5314b094736419a0d57e15f3d710",
+    "sha256": "c82bc353f9fa95b23e387e109b7a6d9f2f93cefe4634cee4f9a130e75ba58ac0",
+    "path": "vendor/pgo-6.0.2.tgz"
+  },
+  "kubernetes-crd-schema": {
+    "version": "1.35.8",
+    "url": "Kubernetes 1.35.8 API /openapi/v3/apis/apiextensions.k8s.io/v1",
+    "sha256": "eb63f8f204e7e73705798058f0d0755cf93978d6437f4cb0e0fe376687cafd73",
+    "path": "vendor/schemas/customresourcedefinition_v1.json"
+  },
+  "cilium-policy-schema": {
+    "version": "1.20.2",
+    "url": "Kubernetes API /apis/apiextensions.k8s.io/v1/customresourcedefinitions/ciliumnetworkpolicies.cilium.io from pinned Cilium 1.20.2",
+    "sha256": "e6818bef3306ece1cbbc352fe57d7165b9d725f3fff74704c01c4b825c33447c",
+    "path": "vendor/schemas/ciliumnetworkpolicy_v2.json"
+  }
+}

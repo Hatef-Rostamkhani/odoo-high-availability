@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "workers": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "cronThreads": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "credentialsMode": {
+          "enum": [
+            "static",
+            "rotating"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "user": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "backend": {
+          "enum": [
+            "standalone",
+            "crunchy"
+          ]
+        },
+        "tls": {
+          "type": "object",
+          "properties": {
+            "caSecret": {
+              "type": "string"
+            },
+            "caKey": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "initialization": {
+      "type": "object",
+      "properties": {
+        "modules": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_,]*$"
+        }
+      }
+    },
+    "probes": {
+      "type": "object",
+      "properties": {
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        }
+      }
+    },
+    "application": {
+      "type": "object",
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "single",
+            "ha"
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "database": {
+            "properties": {
+              "backend": {
+                "const": "crunchy"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "database": {
+            "properties": {
+              "sslmode": {
+                "const": "verify-full"
+              },
+              "tls": {
+                "properties": {
+                  "caSecret": {
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          },
+          "initialization": {
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "application": {
+            "properties": {
+              "mode": {
+                "const": "single"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "replicaCount": {
+            "maximum": 1
+          },
+          "workers": {
+            "const": 0
+          },
+          "cron": {
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "replicaCount": {
+            "enum": [
+              0,
+              2
+            ]
+          },
+          "workers": {
+            "const": 2
+          },
+          "cronThreads": {
+            "const": 0
+          },
+          "proxyMode": {
+            "const": true
+          },
+          "dbMaxConnections": {
+            "const": 3
+          },
+          "dbMaxConnectionsGevent": {
+            "const": 4
+          },
+          "initialization": {
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            }
+          },
+          "database": {
+            "properties": {
+              "backend": {
+                "const": "crunchy"
+              }
+            }
+          },
+          "storage": {
+            "properties": {
+              "existingClaim": {
+                "type": "string",
+                "minLength": 1
+              },
+              "accessModes": {
+                "const": [
+                  "ReadWriteMany"
+                ]
+              }
+            }
+          },
+          "cron": {
+            "properties": {
+              "enabled": {
+                "const": true
+              },
+              "replicaCount": {
+                "enum": [
+                  0,
+                  2
+                ]
+              },
+              "threads": {
+                "const": 1
+              },
+              "dbMaxConnections": {
+                "const": 4
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "database": {
+            "properties": {
+              "credentialsMode": {
+                "const": "rotating"
+              }
+            },
+            "required": [
+              "credentialsMode"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "database": {
+            "properties": {
+              "backend": {
+                "const": "crunchy"
+              },
+              "sslmode": {
+                "const": "verify-full"
+              }
+            }
+          },
+          "initialization": {
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

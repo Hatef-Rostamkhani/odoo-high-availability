@@ -1,0 +1,107 @@
+{
+  "actionlint": {
+    "binary_sha256": "c872d6db8c6bf83a8eaa704fc93999f027d55dffbc63b8a6abdccb47df5f4cd4",
+    "checksum_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_checksums.txt",
+    "destination": ".tools/bin/actionlint",
+    "member": "actionlint",
+    "sha256": "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+    "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz"
+  },
+  "argocd": {
+    "checksum_url": "https://github.com/argoproj/argo-cd/releases/download/v3.5.4/cli_checksums.txt",
+    "destination": ".tools/bin/argocd",
+    "sha256": "9cd8cb9f8f785357af441a9544cc1c63a2b8d9bad45ebe88503ab8e315c64ae3",
+    "url": "https://github.com/argoproj/argo-cd/releases/download/v3.5.4/argocd-linux-amd64"
+  },
+  "cilium": {
+    "binary_sha256": "1409138d78f4215fb342949233ea91dde4847a4923910255e78ac52a0bdf54aa",
+    "checksum_url": "https://github.com/cilium/cilium-cli/releases/download/v0.20.1/cilium-linux-amd64.tar.gz.sha256sum",
+    "destination": ".tools/bin/cilium",
+    "member": "cilium",
+    "sha256": "24e817dcfcc8a12e325ce7547617bcbcf171c5b0b335bb24d2bb1207ba047f61",
+    "url": "https://github.com/cilium/cilium-cli/releases/download/v0.20.1/cilium-linux-amd64.tar.gz"
+  },
+  "gitleaks": {
+    "binary_sha256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
+    "checksum_url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt",
+    "destination": ".tools/bin/gitleaks",
+    "member": "gitleaks",
+    "sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
+    "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
+  },
+  "headlamp-package": {
+    "checksum_url": "https://github.com/kubernetes-sigs/headlamp/releases/download/v0.45.0/checksums.txt",
+    "destination": ".cache/downloads/headlamp.deb",
+    "executable": false,
+    "sha256": "1b90e7f72795f0a2f2cd8ac888578d5aa728f7f80b8e7103c589820c09edcf4b",
+    "url": "https://github.com/kubernetes-sigs/headlamp/releases/download/v0.45.0/headlamp_0.45.0-1_amd64.deb"
+  },
+  "helm": {
+    "binary_sha256": "57ce7fc4ea77b28ee6fa91ae071abcade74d3f524e80c9decff5877a5ac8eda4",
+    "checksum_url": "https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz.sha256sum",
+    "destination": ".tools/bin/helm",
+    "member": "linux-amd64/helm",
+    "sha256": "86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb",
+    "url": "https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz"
+  },
+  "hubble": {
+    "binary_sha256": "71e7df27c787b64626eb5f79bd6b10b9627b69eec19ca59be982988d7b0fa369",
+    "checksum_url": "https://github.com/cilium/hubble/releases/download/v1.20.2/hubble-linux-amd64.tar.gz.sha256sum",
+    "destination": ".tools/bin/hubble",
+    "member": "hubble",
+    "sha256": "03f248a50cad11e728bf9383382392c57148fd6a19853ad359fb7598dae29312",
+    "url": "https://github.com/cilium/hubble/releases/download/v1.20.2/hubble-linux-amd64.tar.gz"
+  },
+  "k9s": {
+    "binary_sha256": "da2a7b4844204e5f31da0e57536e85a848f4d2260cd58737402bbb04ce4c99a2",
+    "checksum_url": "https://github.com/derailed/k9s/releases/download/v0.51.0/checksums.sha256",
+    "destination": ".tools/bin/k9s",
+    "member": "k9s",
+    "sha256": "c3752ad51a5a4015a113819c4eeb6e55a4d0e4b8e652494797532f6fc8161dd7",
+    "url": "https://github.com/derailed/k9s/releases/download/v0.51.0/k9s_Linux_amd64.tar.gz"
+  },
+  "kind": {
+    "checksum_url": "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64.sha256sum",
+    "destination": ".tools/bin/kind",
+    "sha256": "aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d",
+    "url": "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64"
+  },
+  "kubeconform": {
+    "binary_sha256": "457722b36e98d7bdbc91525e594951ef5d7ea3a29da2d13b9b28a2fb8a5097b7",
+    "checksum_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+    "destination": ".tools/bin/kubeconform",
+    "member": "kubeconform",
+    "sha256": "9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883",
+    "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz"
+  },
+  "kubectl": {
+    "checksum_url": "https://dl.k8s.io/release/v1.35.8/bin/linux/amd64/kubectl.sha256",
+    "destination": ".tools/bin/kubectl",
+    "sha256": "874d5e72dbb819f43cff16bcd1e4f8bac5b7f2361fe1e55049b0a6c676fb0cbf",
+    "url": "https://dl.k8s.io/release/v1.35.8/bin/linux/amd64/kubectl"
+  },
+  "ruff": {
+    "binary_sha256": "4ca9f3d98bc6e23e2b5a7e9f8ef50b4c2a3a96ff89a23b02a33347c954e7e10d",
+    "checksum_url": "https://github.com/astral-sh/ruff/releases/download/0.17.0/ruff-x86_64-unknown-linux-gnu.tar.gz.sha256",
+    "destination": ".tools/bin/ruff",
+    "member": "ruff-x86_64-unknown-linux-gnu/ruff",
+    "sha256": "c94fc1dc71f054d06d9f1149442dcb471516aa2b7d4b7e8124e05d082d4c91d3",
+    "url": "https://github.com/astral-sh/ruff/releases/download/0.17.0/ruff-x86_64-unknown-linux-gnu.tar.gz"
+  },
+  "shellcheck": {
+    "binary_sha256": "4da528ddb3a4d1b7b24a59d4e16eb2f5fd960f4bd9a3708a15baddbdf1d5a55b",
+    "checksum_url": "https://api.github.com/repos/koalaman/shellcheck/releases/tags/v0.11.0",
+    "destination": ".tools/bin/shellcheck",
+    "member": "shellcheck-v0.11.0/shellcheck",
+    "sha256": "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6",
+    "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz"
+  },
+  "trivy": {
+    "binary_sha256": "93f9da8e4ba5e0c1c76d8234ed2494cf9afb0a96fd21953e424bb795f3299b8e",
+    "checksum_url": "https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_checksums.txt",
+    "destination": ".tools/bin/trivy",
+    "member": "trivy",
+    "sha256": "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f",
+    "url": "https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_Linux-64bit.tar.gz"
+  }
+}

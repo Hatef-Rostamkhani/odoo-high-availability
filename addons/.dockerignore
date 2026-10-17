@@ -1,0 +1,8 @@
+**/.git
+**/.env
+**/__pycache__
+**/*.pyc
+**/*secret*
+**/*credentials*
+README.md
+Dockerfile

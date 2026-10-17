@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="510" viewBox="0 0 1000 510" role="img" aria-labelledby="title desc">
+<title id="title">Odoo development profiles</title><desc id="desc">Basic single-node application tests and optional three-node HA lab. All local nodes share one physical host.</desc>
+<rect width="1000" height="510" rx="16" fill="#f4f7fb"/><text x="35" y="43" font-family="sans-serif" font-size="24" font-weight="bold" fill="#182238">Odoo High Availability Lab</text>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#59718f"/></marker></defs>
+<rect x="35" y="85" width="320" height="72" rx="10" fill="white" stroke="#8097b4"/>
+<text x="51" y="112" font-family="sans-serif" font-size="15" font-weight="bold" fill="#243f62">BASIC PROFILE</text>
+<text x="51" y="136" font-family="sans-serif" font-size="12" fill="#44566e">One Kind node · Odoo 19 + PostgreSQL 17</text>
+<rect x="455" y="85" width="510" height="72" rx="10" fill="white" stroke="#8097b4"/>
+<text x="471" y="112" font-family="sans-serif" font-size="15" font-weight="bold" fill="#243f62">THREE-NODE LAB</text>
+<text x="471" y="136" font-family="sans-serif" font-size="12" fill="#44566e">Cilium · Argo CD · Prometheus / Grafana</text>
+<rect x="35" y="220" width="320" height="72" rx="10" fill="white" stroke="#8097b4"/>
+<text x="51" y="247" font-family="sans-serif" font-size="15" font-weight="bold" fill="#243f62">Application checks</text>
+<text x="51" y="271" font-family="sans-serif" font-size="12" fill="#44566e">Login · CRM · attachments · pod recovery</text>
+<rect x="455" y="220" width="510" height="72" rx="10" fill="white" stroke="#8097b4"/>
+<text x="471" y="247" font-family="sans-serif" font-size="15" font-weight="bold" fill="#243f62">OPTIONAL HA PROFILES</text>
+<text x="471" y="271" font-family="sans-serif" font-size="12" fill="#44566e">Strict PostgreSQL replication · Odoo web / cron</text>
+<rect x="35" y="355" width="320" height="72" rx="10" fill="white" stroke="#8097b4"/>
+<text x="51" y="382" font-family="sans-serif" font-size="15" font-weight="bold" fill="#243f62">Coordinated restore</text>
+<text x="51" y="406" font-family="sans-serif" font-size="12" fill="#44566e">Database + matching filestore · isolated clone</text>
+<rect x="455" y="355" width="510" height="72" rx="10" fill="white" stroke="#8097b4"/>
+<text x="471" y="382" font-family="sans-serif" font-size="15" font-weight="bold" fill="#243f62">OPTIONAL SECRET ROTATION</text>
+<text x="471" y="406" font-family="sans-serif" font-size="12" fill="#44566e">OpenBao · External Secrets · bounded credentials</text>
+<path d="M195 157V214" stroke="#59718f" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M195 292V349" stroke="#59718f" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M710 157V214" stroke="#59718f" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M710 292V349" stroke="#59718f" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="35" y="478" font-family="sans-serif" font-size="15" fill="#6f3e31">Local lab: all nodes and storage share one host. Production and host disaster recovery are unverified.</text></svg>

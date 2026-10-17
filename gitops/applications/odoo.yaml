@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: odoo
+  namespace: argocd
+spec:
+  project: odoo-applications
+  source:
+    repoURL: git://local-git.gitops-system.svc.cluster.local:9418/odoo-platform.git
+    targetRevision: main
+    path: helm/odoo
+    helm:
+      releaseName: odoo
+      valueFiles:
+      - ../../gitops/environments/dev/odoo.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: odoo-dev
+  syncPolicy:
+    syncOptions:
+    - RespectIgnoreDifferences=true
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    name: odoo
+    jsonPointers:
+    - /spec/replicas
+    - /spec/template/metadata/annotations/odoo.io~1credential-generation
+  - group: apps
+    kind: Deployment
+    name: odoo-cron
+    jsonPointers:
+    - /spec/replicas
+    - /spec/template/metadata/annotations/odoo.io~1credential-generation

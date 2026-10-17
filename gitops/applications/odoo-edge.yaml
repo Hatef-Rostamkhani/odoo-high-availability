@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: {name: odoo-edge, namespace: argocd}
+spec:
+  project: odoo-applications
+  source:
+    repoURL: git://local-git.gitops-system.svc.cluster.local:9418/odoo-platform.git
+    targetRevision: main
+    path: helm/odoo-edge
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: odoo-edge
+  syncPolicy:
+    syncOptions: [RespectIgnoreDifferences=true]

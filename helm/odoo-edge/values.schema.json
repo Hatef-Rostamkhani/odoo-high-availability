@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "properties": {
+    "replicaCount": {
+      "enum": [
+        0,
+        2
+      ]
+    },
+    "nodePort": {
+      "const": 30669
+    },
+    "entryCIDR": {
+      "type": "string",
+      "pattern": "^[0-9.]+/32$"
+    }
+  }
+}

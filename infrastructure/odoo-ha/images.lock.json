@@ -1,0 +1,10 @@
+{
+  "haproxy": {
+    "version": "3.2.25",
+    "image": "docker.io/library/haproxy:3.2.25-alpine@sha256:168a5e3984df24054946c94fb7d29d785c7ed1af8ce11ea4b33253221c8c85c8",
+    "docker_config_digest": "sha256:9d3b7cdc11c490a3e2a6193b71adc184eb38c7a996c654503b5394ca71c595bb",
+    "index_digest": "sha256:5d97434a423c2533cfeb42874d45cf6d69a840b60334582dfbfd5008e94c80be",
+    "platform": "linux/amd64",
+    "docker_runtime_digest": "sha256:af578e0938fe494b973ba5af79661162f87a3c72d59c246a73292401f755c945"
+  }
+}

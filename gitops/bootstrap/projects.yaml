@@ -1,0 +1,119 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: odoo-applications
+  namespace: argocd
+spec:
+  sourceRepos:
+  - git://local-git.gitops-system.svc.cluster.local:9418/odoo-platform.git
+  destinations:
+  - namespace: odoo-dev
+    server: https://kubernetes.default.svc
+  - namespace: odoo-edge
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+  - group: ''
+    kind: ConfigMap
+  - group: ''
+    kind: Service
+  - group: ''
+    kind: ServiceAccount
+  - group: ''
+    kind: PersistentVolumeClaim
+  - group: apps
+    kind: Deployment
+  - group: apps
+    kind: StatefulSet
+  - group: apps
+    kind: DaemonSet
+  - group: batch
+    kind: Job
+  - group: networking.k8s.io
+    kind: NetworkPolicy
+  - group: policy
+    kind: PodDisruptionBudget
+  - group: rbac.authorization.k8s.io
+    kind: Role
+  - group: rbac.authorization.k8s.io
+    kind: RoleBinding
+  - group: monitoring.coreos.com
+    kind: Prometheus
+  - group: monitoring.coreos.com
+    kind: ServiceMonitor
+  - group: monitoring.coreos.com
+    kind: PodMonitor
+  - group: monitoring.coreos.com
+    kind: PrometheusRule
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: odoo-platform
+  namespace: argocd
+spec:
+  sourceRepos:
+  - git://local-git.gitops-system.svc.cluster.local:9418/odoo-platform.git
+  destinations:
+  - namespace: kube-system
+    server: https://kubernetes.default.svc
+  - namespace: monitoring
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+  - group: ''
+    kind: ConfigMap
+  - group: ''
+    kind: Service
+  - group: ''
+    kind: ServiceAccount
+  - group: ''
+    kind: PersistentVolumeClaim
+  - group: apps
+    kind: Deployment
+  - group: apps
+    kind: StatefulSet
+  - group: apps
+    kind: DaemonSet
+  - group: batch
+    kind: Job
+  - group: networking.k8s.io
+    kind: NetworkPolicy
+  - group: policy
+    kind: PodDisruptionBudget
+  - group: rbac.authorization.k8s.io
+    kind: Role
+  - group: rbac.authorization.k8s.io
+    kind: RoleBinding
+  - group: monitoring.coreos.com
+    kind: Prometheus
+  - group: monitoring.coreos.com
+    kind: ServiceMonitor
+  - group: monitoring.coreos.com
+    kind: PodMonitor
+  - group: monitoring.coreos.com
+    kind: PrometheusRule
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: odoo-database-ha
+  namespace: argocd
+spec:
+  sourceRepos:
+  - git://local-git.gitops-system.svc.cluster.local:9418/odoo-platform.git
+  destinations:
+  - namespace: postgres-ha
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+  - group: postgres-operator.crunchydata.com
+    kind: PostgresCluster
+  - group: networking.k8s.io
+    kind: NetworkPolicy
+  - group: monitoring.coreos.com
+    kind: PodMonitor
+  - group: ''
+    kind: ConfigMap
+  - group: cilium.io
+    kind: CiliumNetworkPolicy

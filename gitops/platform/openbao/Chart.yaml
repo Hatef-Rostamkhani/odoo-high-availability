@@ -1,0 +1,7 @@
+apiVersion: v2
+name: odoo-openbao
+version: 0.1.0
+dependencies:
+- name: openbao
+  version: 0.30.3
+  repository: file://charts

@@ -1,0 +1,97 @@
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: odoo-ha
+  namespace: postgres-ha
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  postgresVersion: 17
+  image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi9-17.10-2621@sha256:402cb6bccadadaecd619ac2ecdea238c8844831e6a8f4caf36b63e3fa79c4a49
+  instances:
+  - name: ha
+    replicas: 3
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: '1'
+        memory: 1536Mi
+    dataVolumeClaimSpec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+    minAvailable: 2
+    tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              postgres-operator.crunchydata.com/cluster: odoo-ha
+              postgres-operator.crunchydata.com/instance-set: ha
+  users:
+  - name: odoo
+    databases:
+    - odoo_dev
+    options: NOSUPERUSER NOCREATEDB NOCREATEROLE CONNECTION LIMIT 45 NOLOGIN
+  - name: ha-test
+    databases:
+    - ha_tests
+    options: NOSUPERUSER NOCREATEDB NOCREATEROLE
+  patroni:
+    leaderLeaseDurationSeconds: 30
+    syncPeriodSeconds: 10
+    dynamicConfiguration:
+      ttl: 30
+      loop_wait: 10
+      synchronous_mode: true
+      synchronous_mode_strict: true
+      synchronous_node_count: 1
+      postgresql:
+        parameters:
+          max_connections: 60
+          shared_buffers: 128MB
+          synchronous_commit: 'on'
+  backups:
+    pgbackrest:
+      image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi9-2.58.0-2621@sha256:cfbd7926c9c2f33a42464328596c018b036c14d331add1170cd7f29c30f8ffde
+      global:
+        repo1-retention-full: '2'
+      repoHost:
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 300m
+            memory: 256Mi
+      repos:
+      - name: repo1
+        schedules:
+          full: 0 3 * * *
+        volume:
+          volumeClaimSpec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi
+  monitoring:
+    pgmonitor:
+      exporter:
+        image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres-exporter:ubi9-0.18.1-2621@sha256:243ba198803ce1e795f4cbee6d7ceb7743b972118e47cdc2d8cd1e1974a9cd6a
+        resources:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi

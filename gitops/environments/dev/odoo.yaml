@@ -1,0 +1,17 @@
+# Fresh installs start with a local database and synthetic CRM data.
+application:
+  mode: single
+replicaCount: 1
+workers: 0
+cronThreads: 1
+initialization:
+  enabled: true
+  syntheticData: true
+database:
+  backend: standalone
+  credentialsMode: static
+  host: postgresql
+  name: odoo_dev
+storage:
+  existingClaim: ''
+  accessModes: [ReadWriteOnce]

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: odoo-configuration
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+data:
+  settings.json: |
+    {{ dict "host" .Values.database.host "port" .Values.database.port "database" .Values.database.name "user" .Values.database.user "credentialsMode" .Values.database.credentialsMode "sslmode" .Values.database.sslmode "workers" .Values.workers "cron" .Values.cronThreads "maxconn" .Values.dbMaxConnections "modules" .Values.initialization.modules "synthetic" .Values.initialization.syntheticData "mode" .Values.application.mode "proxyMode" .Values.proxyMode "geventPort" .Values.geventPort "geventMaxconn" .Values.dbMaxConnectionsGevent "cronWorkers" .Values.cron.threads "cronMaxconn" .Values.cron.dbMaxConnections "memorySoft" .Values.workerMemory.soft "memoryHard" .Values.workerMemory.hard "dataDir" .Values.storage.dataDir | toJson }}
+  start.py: |
+{{ .Files.Get "files/start.py" | indent 4 }}
+  credentials.py: |
+{{ .Files.Get "files/credentials.py" | indent 4 }}
+  cron-health.py: |
+{{ .Files.Get "files/cron-health.py" | indent 4 }}
+  cron-run.py: |
+{{ .Files.Get "files/cron-run.py" | indent 4 }}
+  ha-exporter.py: |
+{{ .Files.Get "files/ha-exporter.py" | indent 4 }}

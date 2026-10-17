@@ -1,0 +1,55 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: openbao
+  namespace: openbao
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openbao
+      app.kubernetes.io/instance: openbao
+      component: server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bao-bootstrap
+  namespace: openbao
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bao-operator
+  namespace: openbao
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: odoo-openbao-tokenreview
+  annotations:
+    argocd.argoproj.io/hook: Skip
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: odoo-openbao-tokenreview
+  annotations:
+    argocd.argoproj.io/hook: Skip
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: odoo-openbao-tokenreview
+subjects:
+- kind: ServiceAccount
+  name: openbao
+  namespace: openbao

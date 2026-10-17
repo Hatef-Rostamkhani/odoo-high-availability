@@ -1,0 +1,7 @@
+apiVersion: v2
+name: odoo-external-secrets
+version: 0.1.0
+dependencies:
+- name: external-secrets
+  version: 2.12.0
+  repository: file://charts

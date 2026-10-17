@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: odoo-shared-data
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  capacity: {storage: 5Gi}
+  accessModes: [ReadWriteMany]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ''
+  mountOptions: [hard, nfsvers=4.1]
+  claimRef: {namespace: odoo-dev, name: odoo-shared-data}
+  nfs: {server: 172.18.0.1, path: /}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: odoo-shared-data
+  namespace: odoo-dev
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  volumeName: odoo-shared-data
+  storageClassName: ''
+  accessModes: [ReadWriteMany]
+  resources:
+    requests: {storage: 5Gi}

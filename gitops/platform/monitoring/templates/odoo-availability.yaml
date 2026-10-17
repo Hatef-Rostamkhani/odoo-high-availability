@@ -1,0 +1,111 @@
+{{- define "odoo-availability-config" -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: odoo-availability
+data:
+  exporter.py: |
+    import http.server, http.cookiejar, json, signal, sys, time, urllib.request
+    from pathlib import Path
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    url = '{{ if .Values.odooHA.enabled }}http://172.18.0.250:18069{{ else }}http://odoo.odoo-dev.svc.cluster.local:8069{{ end }}'
+    jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(jar))
+    uid = None
+    reauthentications = 0
+    def rpc(path, params):
+        request = urllib.request.Request(url + path, json.dumps({'jsonrpc':'2.0','method':'call','id':1,'params':params}).encode(), {'Content-Type':'application/json'})
+        with opener.open(request, timeout=3) as response:
+            return json.load(response)['result']
+    class Exporter(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            global uid, reauthentications
+            started = time.monotonic()
+            try:
+                with opener.open(url + '/web/health?db_server_status=1', timeout=3) as response:
+                    up = int(response.status == 200 and json.load(response).get('status') == 'pass')
+            except Exception:
+                up = 0
+            payload = ('# TYPE odoo_odoo_http_up gauge\nodoo_odoo_http_up %d\n# TYPE odoo_odoo_probe_seconds gauge\nodoo_odoo_probe_seconds %.6f\n' % (up, time.monotonic() - started)).encode()
+            payload += b'# TYPE odoo_odoo_ha_mode gauge\nodoo_odoo_ha_mode {{ if .Values.odooHA.enabled }}1{{ else }}0{{ end }}\n'
+            {{- if .Values.odooHA.enabled }}
+            session_up = 0
+            try:
+                if uid is None:
+                    uid = rpc('/web/session/authenticate', {'db':'odoo_dev','login':Path('/run/probe/username').read_text(),'password':Path('/run/probe/password').read_text()})['uid']
+                actual = rpc('/web/session/get_session_info', {})['uid']
+                session_up = int(bool(uid) and actual == uid)
+                if not session_up:
+                    uid = None
+                    jar.clear()
+                    reauthentications += 1
+            except Exception:
+                pass
+            payload += ('# TYPE odoo_odoo_session_up gauge\nodoo_odoo_session_up %d\n# TYPE odoo_odoo_session_reauthentications_total counter\nodoo_odoo_session_reauthentications_total %d\n' % (session_up, reauthentications)).encode()
+            {{- end }}
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain; version=0.0.4')
+            self.end_headers()
+            self.wfile.write(payload)
+        def log_message(self, *args):
+            pass
+    http.server.HTTPServer(('0.0.0.0', 9115), Exporter).serve_forever()
+{{- end }}
+{{ include "odoo-availability-config" . }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odoo-availability
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: odoo-availability}
+  template:
+    metadata:
+      labels: {app: odoo-availability}
+      annotations:
+        checksum/exporter: {{ include "odoo-availability-config" . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsUser: 1000, runAsGroup: 1000, runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: exporter
+          image: docker.io/library/odoo:19.0@sha256:dd9013e669caaa23d26765dc55814655eaeecca7cfc2c265dbabae913bce22fd
+          imagePullPolicy: IfNotPresent
+          command: [python3, /app/exporter.py]
+          ports: [{name: metrics, containerPort: 9115}]
+          readinessProbe: {tcpSocket: {port: metrics}, periodSeconds: 10}
+          livenessProbe: {tcpSocket: {port: metrics}, periodSeconds: 15}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 25m, memory: 32Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+          volumeMounts:
+            - {name: script, mountPath: /app, readOnly: true}
+            {{- if .Values.odooHA.enabled }}
+            - {name: probe, mountPath: /run/probe, readOnly: true}
+            {{- end }}
+      volumes:
+        - {name: script, configMap: {name: odoo-availability}}
+        {{- if .Values.odooHA.enabled }}
+        - {name: probe, secret: {secretName: odoo-session-probe, defaultMode: 0444}}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo-availability
+  labels: {app: odoo-availability}
+spec:
+  selector: {app: odoo-availability}
+  ports: [{name: metrics, port: 9115, targetPort: metrics}]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: odoo-availability
+spec:
+  selector:
+    matchLabels: {app: odoo-availability}
+  endpoints: [{port: metrics, interval: 30s}]

@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a reproducible problem using synthetic data.
+title: '[Bug] '
+body:
+  - type: markdown
+    attributes:
+      value: 'For vulnerabilities use the private route in SECURITY.md. Never attach credentials, kubeconfigs, backups or .state.'
+  - type: input
+    id: version
+    attributes:
+      label: Release or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Profile
+      options: [Basic, Three-node lab, Database HA, Odoo HA, Secrets rotation]
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Host and tool versions
+      description: OS, architecture, available RAM/disk, Docker and relevant pinned tools.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the exact command and a small synthetic example.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized output
+      render: text

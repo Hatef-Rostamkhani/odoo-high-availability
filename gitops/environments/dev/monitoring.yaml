@@ -1,0 +1,138 @@
+kube-prometheus-stack:
+  fullnameOverride: monitoring
+  global:
+    rbac:
+      create: false
+  crds:
+    enabled: false
+  alertmanager:
+    enabled: false
+  nodeExporter:
+    enabled: false
+  windowsMonitoring:
+    enabled: false
+  kubeEtcd:
+    enabled: false
+  kubeControllerManager:
+    enabled: false
+  kubeScheduler:
+    enabled: false
+  kubeProxy:
+    enabled: false
+  kubeApiServer:
+    serviceMonitor:
+      authorization: &id001
+        type: Bearer
+        credentials:
+          name: monitoring-prometheus-token
+          key: token
+  coreDns:
+    serviceMonitor:
+      authorization: *id001
+  kubelet:
+    serviceMonitor:
+      authorization: *id001
+  prometheusOperator:
+    tls:
+      enabled: false
+    admissionWebhooks:
+      enabled: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  kube-state-metrics:
+    rbac:
+      create: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 300m
+        memory: 256Mi
+  prometheus:
+    serviceAccount:
+      createTokenSecret: false
+    prometheusSpec:
+      replicas: 1
+      retention: 24h
+      retentionSize: 4GB
+      scrapeInterval: 30s
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          cpu: '1'
+          memory: 1536Mi
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      serviceMonitorNamespaceSelector:
+        matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values:
+          - monitoring
+          - kube-system
+          - odoo-dev
+          - odoo-edge
+          - openbao
+          - external-secrets
+          - secrets-system
+      podMonitorNamespaceSelector:
+        matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values:
+          - monitoring
+          - kube-system
+          - postgres-ha
+          - openbao
+      storageSpec:
+        volumeClaimTemplate:
+          metadata:
+            annotations:
+              argocd.argoproj.io/sync-options: Prune=false,Delete=false
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi
+  grafana:
+    rbac:
+      create: true
+      namespaced: true
+    admin:
+      existingSecret: grafana-credentials
+    initChownData:
+      enabled: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    sidecar:
+      resources:
+        requests:
+          cpu: 25m
+          memory: 32Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
+      dashboards:
+        searchNamespace: monitoring
+      datasources:
+        searchNamespace: monitoring
+    persistence:
+      enabled: false
+    testFramework:
+      enabled: false
+odooHA:
+  enabled: true

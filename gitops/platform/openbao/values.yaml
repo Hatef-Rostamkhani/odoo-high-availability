@@ -1,0 +1,200 @@
+openbao:
+  global:
+    tlsDisable: false
+    serverTelemetry:
+      prometheusOperator: true
+  fullnameOverride: openbao
+  injector:
+    enabled: false
+  csi:
+    enabled: false
+  server:
+    image:
+      registry: quay.io
+      repository: openbao/openbao
+      tag: 2.7.1@sha256:a36ea8c27f0dcff5757664ad080425f96d3b6b2f33db3e76c4e2d3112fb17005
+      pullPolicy: IfNotPresent
+    ha:
+      enabled: true
+      replicas: 3
+      raft:
+        enabled: true
+        setNodeId: true
+        config: |
+          ui = true
+          disable_mlock = true
+          log_level = "warn"
+          listener "tcp" {
+            address = "0.0.0.0:8200"
+            cluster_address = "0.0.0.0:8201"
+            tls_cert_file = "/openbao/tls/tls.crt"
+            tls_key_file = "/openbao/tls/tls.key"
+            telemetry { unauthenticated_metrics_access = true }
+          }
+          storage "raft" {
+            path = "/openbao/data"
+            performance_multiplier = 1
+            retry_join {
+              leader_api_addr = "https://openbao-0.openbao-internal.openbao.svc:8200"
+              leader_ca_cert_file = "/openbao/tls/ca.crt"
+            }
+            retry_join {
+              leader_api_addr = "https://openbao-1.openbao-internal.openbao.svc:8200"
+              leader_ca_cert_file = "/openbao/tls/ca.crt"
+            }
+            retry_join {
+              leader_api_addr = "https://openbao-2.openbao-internal.openbao.svc:8200"
+              leader_ca_cert_file = "/openbao/tls/ca.crt"
+            }
+          }
+          seal "static" {
+            current_key_id = "odoo-dev-static-1"
+            current_key = "file:///openbao/seal/key"
+          }
+          service_registration "kubernetes" {}
+          telemetry {
+            prometheus_retention_time = "60s"
+            disable_hostname = true
+          }
+          audit "file" "odoo" {
+            options {
+              file_path = "/openbao/audit/audit.jsonl"
+              mode = "0600"
+              log_raw = "false"
+            }
+          }
+      disruptionBudget:
+        enabled: false
+    standalone:
+      enabled: false
+    dev:
+      enabled: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    dataStorage:
+      size: 1Gi
+      annotations: &id001
+        argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    auditStorage:
+      enabled: true
+      size: 1Gi
+      annotations: *id001
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: openbao
+              component: server
+    tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+    volumes:
+    - name: tls
+      secret:
+        secretName: openbao-tls
+        defaultMode: 288
+    - name: seal
+      secret:
+        secretName: openbao-seal
+        defaultMode: 288
+    volumeMounts:
+    - name: tls
+      mountPath: /openbao/tls
+      readOnly: true
+    - name: seal
+      mountPath: /openbao/seal
+      readOnly: true
+    extraEnvironmentVars:
+      BAO_CACERT: /openbao/tls/ca.crt
+      BAO_TLS_SERVER_NAME: localhost
+    readinessProbe:
+      enabled: true
+      path: /v1/sys/health?standbyok=true
+      timeoutSeconds: 5
+    livenessProbe:
+      enabled: true
+      path: /v1/sys/health?standbyok=true&sealedcode=200&uninitcode=200
+      timeoutSeconds: 5
+      failureThreshold: 6
+    statefulSet:
+      securityContext:
+        pod:
+          runAsUser: 100
+          runAsGroup: 1000
+          runAsNonRoot: true
+          fsGroup: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        container:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+    shareProcessNamespace: true
+    extraContainers:
+    - name: audit-rotation
+      image: quay.io/openbao/openbao:2.7.1@sha256:a36ea8c27f0dcff5757664ad080425f96d3b6b2f33db3e76c4e2d3112fb17005
+      command:
+      - /bin/sh
+      - -ec
+      - |-
+        while true; do
+          if [ -f /openbao/audit/audit.jsonl ] && [ "$(stat -c %s /openbao/audit/audit.jsonl)" -ge 52428800 ]; then
+            rm -f /openbao/audit/audit.jsonl.4
+            for i in 3 2 1; do
+              next=$((i+1)); [ ! -f /openbao/audit/audit.jsonl.$i ] || mv /openbao/audit/audit.jsonl.$i /openbao/audit/audit.jsonl.$next
+            done
+            mv /openbao/audit/audit.jsonl /openbao/audit/audit.jsonl.1
+            for pid in $(pidof bao); do
+              if tr '\000' '\n' </proc/$pid/cmdline | grep -qx server; then kill -HUP "$pid"; fi
+            done
+          fi
+          sleep 10
+        done
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 32Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+          - ALL
+      volumeMounts:
+      - name: audit
+        mountPath: /openbao/audit
+    serviceAccount:
+      create: true
+      name: openbao
+      createSecret: false
+    authDelegator:
+      enabled: false
+    service:
+      type: ClusterIP
+  ui:
+    enabled: true
+    serviceType: ClusterIP
+  serverTelemetry:
+    serviceMonitor:
+      enabled: true
+      selectors:
+        release: monitoring
+      tlsConfig:
+        ca:
+          secret:
+            name: openbao-ca
+            key: ca.crt
+        serverName: openbao.openbao.svc
+        insecureSkipVerify: false

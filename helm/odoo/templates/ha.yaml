@@ -1,0 +1,67 @@
+{{- if eq .Values.application.mode "ha" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo-headless
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: false
+  selector: {app.kubernetes.io/name: odoo, odoo.io/component: server}
+  ports:
+    - {name: http, port: 8069, targetPort: http}
+    - {name: websocket, port: 8072, targetPort: websocket}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: odoo}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: odoo, odoo.io/component: server}
+{{- range $role := list "server" "cron" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo-{{ $role }}-metrics
+  labels: {odoo.io/ha-metrics: "true", odoo.io/component: {{ $role }}}
+spec:
+  selector: {app.kubernetes.io/name: odoo, odoo.io/component: {{ $role }}}
+  ports: [{name: ha-metrics, port: 9116, targetPort: ha-metrics}]
+{{- end }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata: {name: odoo-ha}
+spec:
+  selector: {matchLabels: {odoo.io/ha-metrics: "true"}}
+  endpoints: [{port: ha-metrics, interval: 15s, scrapeTimeout: 10s}]
+{{- end }}
+{{- if .Values.cron.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: odoo-cron}
+spec:
+  replicas: {{ .Values.cron.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxUnavailable: 1, maxSurge: 0}
+  selector:
+    matchLabels: {app.kubernetes.io/name: odoo, odoo.io/component: cron}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: odoo, odoo.io/component: cron}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- include "odoo.pod" (dict "Values" .Values "mode" "cron") | nindent 6 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: odoo-cron}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: odoo, odoo.io/component: cron}
+{{- end }}

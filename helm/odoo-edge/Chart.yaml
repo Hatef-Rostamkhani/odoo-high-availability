@@ -1,0 +1,4 @@
+apiVersion: v2
+name: odoo-edge
+version: 0.1.0
+description: Restricted Odoo HTTP and WebSocket reverse proxies

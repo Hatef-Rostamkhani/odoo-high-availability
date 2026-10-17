@@ -1,0 +1,43 @@
+{{- if .Values.odooHA.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: odoo-ha-dashboard
+  labels: {grafana_dashboard: "1"}
+data:
+  odoo-ha.json: |
+{{ .Files.Get "files/odoo-ha.json" | indent 4 }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata: {name: odoo-ha, labels: {release: monitoring}}
+spec:
+  groups:
+    - name: odoo.odoo-ha
+      rules:
+        - alert: OdooHARedundancyLost
+          expr: (kube_deployment_status_replicas_available{namespace=~"odoo-dev|odoo-edge",deployment=~"odoo|odoo-cron|odoo-edge"} < 2) and on() (odoo_odoo_ha_mode == 1)
+          for: 1m
+          labels: {severity: warning}
+          annotations: {summary: "Odoo has fewer than two available instances"}
+        - alert: OdooHAHTTPUnavailable
+          expr: odoo_odoo_http_up == 0
+          for: 30s
+          labels: {severity: critical}
+          annotations: {summary: "The Odoo entry route is unavailable"}
+        - alert: OdooHACronStale
+          expr: time() - max(odoo_odoo_cron_heartbeat_timestamp_seconds) > 120
+          for: 2m
+          labels: {severity: warning}
+          annotations: {summary: "Odoo cron heartbeat is stale"}
+        - alert: OdooHASessionUnavailable
+          expr: odoo_odoo_session_up == 0
+          for: 1m
+          labels: {severity: warning}
+          annotations: {summary: "The retained portal probe session is unavailable"}
+        - alert: OdooSharedStorageLow
+          expr: min(odoo_odoo_shared_storage_free_bytes) < 16106127360
+          for: 1m
+          labels: {severity: warning}
+          annotations: {summary: "Odoo shared storage has less than 15 GiB free"}
+{{- end }}

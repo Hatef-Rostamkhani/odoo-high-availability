@@ -1,0 +1,621 @@
+"""Bounded rotation/expiry workers; imported by host tooling and mounted in pods."""
+
+import base64
+import datetime as dt
+import hashlib
+import hmac
+import json
+import os
+from pathlib import Path
+import secrets
+import signal
+import ssl
+import threading
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+import psycopg2
+
+LOCK = 789306491213
+ROLES = ('odoo_login_a', 'odoo_login_b')
+
+
+def scram_verifier(password):
+    salt = secrets.token_bytes(16)
+    salted = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 4096)
+    stored = hashlib.sha256(hmac.digest(salted, b'Client Key', 'sha256')).digest()
+    server = hmac.digest(salted, b'Server Key', 'sha256')
+
+    def encode(value):
+        return base64.b64encode(value).decode()
+
+    return 'SCRAM-SHA-256$4096:' + encode(salt) + '$' + encode(stored) + ':' + encode(server)
+
+
+def utc(value):
+    return dt.datetime.fromisoformat(value.replace('Z', '+00:00'))
+
+
+def emit(event, **safe_fields):
+    print(
+        json.dumps(
+            {'event': event, 'utc': dt.datetime.now(dt.timezone.utc).isoformat(), **safe_fields}
+        ),
+        flush=True,
+    )
+
+
+class Worker:
+    def __init__(self, settings):
+        self.settings = settings
+        self.connection = None
+        self.bao_token = None
+        self.bao_token_until = 0
+        self.last_guard_success = 0
+        self.last_success = 0
+        self.last_error = 0
+        self.rotation_attempted = False
+        self.state = {}
+        self.stopping = False
+
+    def db(self):
+        if self.connection is None or self.connection.closed:
+            self.connection = psycopg2.connect(
+                host=self.settings['database_host'],
+                port=self.settings.get('database_port', 5432),
+                hostaddr=self.settings.get('database_hostaddr'),
+                dbname=self.settings['control_database'],
+                user=self.settings['database_user'],
+                password=Path(self.settings['database_password_file']).read_text().strip(),
+                sslmode='verify-full',
+                sslrootcert=self.settings['database_ca'],
+                connect_timeout=5,
+                options='-c statement_timeout=5000 -c lock_timeout=2000',
+                application_name='odoo-secrets-' + self.settings['mode'],
+            )
+            self.connection.autocommit = True
+        return self.connection
+
+    def sql(self, query, parameters=()):
+        with self.db().cursor() as cursor:
+            cursor.execute(query, parameters)
+            return cursor.fetchone()[0] if cursor.description else None
+
+    def status(self):
+        self.state = self.sql('SELECT secret_control.status()')
+        if self.state.get('completed_at'):
+            self.last_success = max(self.last_success, utc(self.state['completed_at']).timestamp())
+        return self.state
+
+    def request(self, address, path, method='GET', payload=None, headers=None, ca=None):
+        request = urllib.request.Request(
+            address + path,
+            method=method,
+            headers=headers or {},
+            data=json.dumps(payload).encode() if payload is not None else None,
+        )
+        context = ssl.create_default_context(cafile=ca) if address.startswith('https://') else None
+        with urllib.request.urlopen(request, context=context, timeout=5) as response:
+            data = response.read()
+            return json.loads(data) if data else {}
+
+    def kube(self, path, method='GET', payload=None):
+        headers = {
+            'Authorization': 'Bearer ' + Path('/run/api/token').read_text().strip(),
+            'Content-Type': 'application/merge-patch+json'
+            if method == 'PATCH'
+            else 'application/json',
+        }
+        return self.request(
+            'https://'
+            + os.environ['KUBERNETES_SERVICE_HOST']
+            + ':'
+            + os.environ.get('KUBERNETES_SERVICE_PORT_HTTPS', '443'),
+            path,
+            method,
+            payload,
+            headers,
+            '/run/api/ca.crt',
+        )
+
+    def bao_jwt(self):
+        return Path('/run/bao-auth/token').read_text().strip()
+
+    def bao(self, path, payload=None):
+        if not self.bao_token or time.time() >= self.bao_token_until:
+            result = self.request(
+                self.settings['bao_address'],
+                '/v1/auth/kubernetes/login',
+                'POST',
+                {'role': self.settings.get('bao_role', 'odoo-rotator'), 'jwt': self.bao_jwt()},
+                {'Content-Type': 'application/json'},
+                self.settings['bao_ca'],
+            )
+            self.bao_token = result['auth']['client_token']
+            self.bao_token_until = time.time() + min(480, result['auth']['lease_duration'] - 30)
+        for attempt in range(2):
+            try:
+                return self.request(
+                    self.settings['bao_address'],
+                    '/v1/' + path,
+                    'POST' if payload is not None else 'GET',
+                    payload,
+                    {'X-Vault-Token': self.bao_token, 'Content-Type': 'application/json'},
+                    self.settings['bao_ca'],
+                )
+            except urllib.error.HTTPError as error:
+                if error.code == 403 and attempt == 0:
+                    result = self.request(
+                        self.settings['bao_address'],
+                        '/v1/auth/kubernetes/login',
+                        'POST',
+                        {
+                            'role': self.settings.get('bao_role', 'odoo-rotator'),
+                            'jwt': self.bao_jwt(),
+                        },
+                        {'Content-Type': 'application/json'},
+                        self.settings['bao_ca'],
+                    )
+                    self.bao_token = result['auth']['client_token']
+                    self.bao_token_until = time.time() + min(
+                        480, result['auth']['lease_duration'] - 30
+                    )
+                    continue
+                raise
+
+    def slot(self, role):
+        return self.settings.get('bao_path', 'kv/data/odoo-dev/odoo-db/') + (
+            'slot-a' if role.endswith('_a') else 'slot-b'
+        )
+
+    def get_credentials(self, role):
+        try:
+            return self.bao(self.slot(role))['data']['data']
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return None
+            raise
+
+    def validate_login(self, credential):
+        if utc(credential['expires_at']) <= dt.datetime.now(dt.timezone.utc):
+            raise RuntimeError('Credential expired before validation')
+        connection = self.login_connection(credential)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT session_user,current_user,pg_is_in_recovery()')
+                if cursor.fetchone() != (credential['username'], 'odoo', False):
+                    raise RuntimeError('Database identity or primary routing mismatch')
+                cursor.execute(
+                    'SELECT rolsuper,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls FROM pg_roles WHERE rolname=session_user'
+                )
+                if any(cursor.fetchone()):
+                    raise RuntimeError('Application role has excessive privileges')
+                if not connection.info.ssl_in_use:
+                    raise RuntimeError('Database connection is not encrypted')
+        finally:
+            connection.close()
+
+    def login_connection(self, credential, database=None):
+        return psycopg2.connect(
+            host=self.settings['database_host'],
+            hostaddr=self.settings.get('database_hostaddr'),
+            port=self.settings.get('database_port', 5432),
+            dbname=database or self.settings['application_database'],
+            user=credential['username'],
+            password=credential['password'],
+            sslmode='verify-full',
+            sslrootcert=self.settings['database_ca'],
+            connect_timeout=5,
+            application_name='odoo-rotation-validation',
+        )
+
+    def issue(self):
+        state = self.status()
+        if state['operation']:
+            role = state['operation']['new_role']
+            credential = self.get_credentials(role)
+            if not credential or credential['generation'] != state['operation']['generation']:
+                raise RuntimeError('In-progress generation has no matching staged credential')
+            meta = next(
+                g for g in state['generations'] if g['generation'] == credential['generation']
+            )
+            credential.update({key: meta[key] for key in ('issued_at', 'expires_at')})
+            self.bao(self.slot(role), {'data': credential})
+            return credential
+        role = (
+            'odoo_login_b'
+            if state['configuration']['active_role'] == 'odoo_login_a'
+            else 'odoo_login_a'
+        )
+        credential = self.get_credentials(role)
+        # Reuse only an unissued staging record after a controller crash.
+        if (
+            not credential
+            or 'issued_at' in credential
+            or any(g['generation'] == credential['generation'] for g in state['generations'])
+        ):
+            credential = {
+                'username': role,
+                'password': secrets.token_urlsafe(36),
+                'generation': secrets.token_hex(16),
+            }
+            self.bao(self.slot(role), {'data': credential})
+        meta = self.sql(
+            'SELECT secret_control.issue(%s,%s,%s,%s)',
+            (
+                role,
+                credential['generation'],
+                scram_verifier(credential['password']),
+                os.environ.get('ODOO_ROTATION_MAINTENANCE_TOKEN'),
+            ),
+        )
+        credential.update({key: meta[key] for key in ('issued_at', 'expires_at')})
+        self.bao(self.slot(role), {'data': credential})
+        emit('ISSUED', generation=credential['generation'], role=role)
+        return credential
+
+    def publish(self, credential):
+        self.validate_login(credential)
+        path_prefix = self.settings.get('bao_path', 'kv/data/odoo-dev/odoo-db/')
+        result = self.bao(path_prefix + 'active', {'data': credential})
+        version = str(result['data']['version'])
+        self.sql(
+            'SELECT secret_control.publication(%s,%s)', (credential['generation'], int(version))
+        )
+        namespace = self.settings['application_namespace']
+        path = (
+            f'/apis/external-secrets.io/v1/namespaces/{namespace}/externalsecrets/odoo-ha-database'
+        )
+        self.kube(
+            path,
+            'PATCH',
+            {
+                'metadata': {'annotations': {'force-sync': credential['generation']}},
+                'spec': {
+                    'data': [
+                        {
+                            'secretKey': key,
+                            'remoteRef': {
+                                'key': path_prefix.split('/data/', 1)[1] + 'active',
+                                'property': key,
+                                'version': version,
+                            },
+                        }
+                        for key in ('username', 'password', 'generation', 'issued_at', 'expires_at')
+                    ]
+                },
+            },
+        )
+        deadline = time.monotonic() + 90
+        while time.monotonic() < deadline:
+            try:
+                secret = self.kube(f'/api/v1/namespaces/{namespace}/secrets/odoo-ha-database')
+            except urllib.error.HTTPError as error:
+                if error.code != 404:
+                    raise
+                secret = {}
+            if 'credentials.json' in secret.get('data', {}):
+                loaded = json.loads(base64.b64decode(secret['data']['credentials.json']))
+                if loaded == credential:
+                    self.sql(
+                        'SELECT secret_control.advance(%s,%s)',
+                        (credential['generation'], 'PUBLISHED'),
+                    )
+                    return
+            time.sleep(1)
+        raise TimeoutError('ESO did not publish the exact issued generation')
+
+    def pods(self):
+        namespace = self.settings['application_namespace']
+        path = f'/api/v1/namespaces/{namespace}/pods?labelSelector=app.kubernetes.io%2Fname%3Dodoo'
+        return self.kube(path)['items']
+
+    def identity(self, pod):
+        address = pod['status'].get('podIP')
+        if not address:
+            return None
+        try:
+            return self.request('http://' + address + ':9116', '/identity')
+        except (OSError, urllib.error.URLError, ValueError):
+            return None
+
+    def rebudget(self, new_role, generation):
+        old = 'odoo_login_b' if new_role == 'odoo_login_a' else 'odoo_login_a'
+        old_capacity = 0
+        for pod in self.pods():
+            role = pod['metadata']['labels'].get('odoo.io/component')
+            if role not in ('server', 'cron'):
+                continue
+            identity = self.identity(pod)
+            if identity and identity.get('generation') == generation:
+                continue
+            # Preserve capacity for draining/temporarily unreachable old pods.
+            old_capacity += 11 if role == 'server' else 6
+        state = self.status()
+        old_capacity = max(old_capacity, state['connections'].get(old, 0))
+        old_capacity = min(34, old_capacity)
+        a, b = (
+            (45 - old_capacity, old_capacity)
+            if new_role.endswith('_a')
+            else (old_capacity, 45 - old_capacity)
+        )
+        return self.sql('SELECT secret_control.set_budget(%s,%s)', (a, b))
+
+    def rollout(self, deployment, credential, timeout=360):
+        namespace = self.settings['application_namespace']
+        path = f'/apis/apps/v1/namespaces/{namespace}/deployments/{deployment}'
+        generation = credential['generation']
+        self.kube(
+            path,
+            'PATCH',
+            {
+                'spec': {
+                    'template': {
+                        'metadata': {'annotations': {'odoo.io/credential-generation': generation}}
+                    }
+                }
+            },
+        )
+        end = time.monotonic() + timeout
+        component = 'server' if deployment == 'odoo' else 'cron'
+        while time.monotonic() < end:
+            self.rebudget(credential['username'], generation)
+            state = self.status()
+            meta = next(g for g in state['generations'] if g['generation'] == generation)
+            if utc(meta['expires_at']) <= utc(state['clock']):
+                raise RuntimeError('Generation expired during rollout')
+            value = self.kube(path)
+            desired = value['spec']['replicas']
+            status = value.get('status', {})
+            pods = [
+                p
+                for p in self.pods()
+                if p['metadata']['labels'].get('odoo.io/component') == component
+                and not p['metadata'].get('deletionTimestamp')
+            ]
+            if (
+                status.get('observedGeneration', 0) >= value['metadata']['generation']
+                and status.get('updatedReplicas', 0) == desired
+                and status.get('availableReplicas', 0) == desired
+                and len(pods) == desired
+                and desired > 0
+                and all((self.identity(p) or {}).get('generation') == generation for p in pods)
+                and not any(
+                    p['metadata'].get('deletionTimestamp')
+                    for p in self.pods()
+                    if p['metadata']['labels'].get('odoo.io/component') == component
+                )
+            ):
+                return
+            time.sleep(2)
+        raise TimeoutError('Credential rollout did not become healthy')
+
+    def rotate(self, force=False):
+        acquired = self.sql('SELECT pg_try_advisory_lock(%s)', (LOCK,))
+        if not acquired:
+            state = self.status()
+            if not state.get('maintenance') or state['maintenance']['owner'] != os.environ.get(
+                'ODOO_ROTATION_MAINTENANCE_TOKEN'
+            ):
+                return False
+        try:
+            state = self.status()
+            config = state['configuration']
+            if state.get('maintenance') and state['maintenance']['owner'] != os.environ.get(
+                'ODOO_ROTATION_MAINTENANCE_TOKEN'
+            ):
+                return False
+            if not config['enabled'] and not force:
+                return False
+            if state['operation']:
+                progress = next(
+                    g
+                    for g in state['generations']
+                    if g['generation'] == state['operation']['generation']
+                )
+                if utc(progress['expires_at']) <= utc(state['clock']):
+                    self.sql('SELECT secret_control.abort(%s)', (progress['generation'],))
+                    state = self.status()
+            if not state['operation'] and not force:
+                meta = next(
+                    g
+                    for g in state['generations']
+                    if g['generation'] == config['active_generation']
+                )
+                if (
+                    utc(meta['expires_at']).timestamp() - utc(state['clock']).timestamp()
+                    > config['lead_seconds']
+                ):
+                    return False
+            self.rotation_attempted = True
+            credential = self.issue()
+            generation = credential['generation']
+            phase = self.status()['operation']['phase']
+            if phase == 'ISSUED':
+                self.publish(credential)
+                phase = 'PUBLISHED'
+            if phase == 'PUBLISHED':
+                self.rollout('odoo', credential)
+                self.sql('SELECT secret_control.advance(%s,%s)', (generation, 'WEB_READY'))
+                phase = 'WEB_READY'
+            if phase == 'WEB_READY':
+                self.rollout('odoo-cron', credential)
+                self.cron_heartbeat(credential)
+                self.sql('SELECT secret_control.advance(%s,%s)', (generation, 'CRON_READY'))
+            self.validate_login(credential)
+            self.sql('SELECT secret_control.finish(%s)', (generation,))
+            self.last_success = time.time()
+            emit('ROTATION_COMPLETE', generation=generation, role=credential['username'])
+            return True
+        finally:
+            try:
+                if acquired:
+                    self.sql('SELECT pg_advisory_unlock(%s)', (LOCK,))
+            except psycopg2.Error:
+                self.close()
+
+    def cron_heartbeat(self, credential, timeout=90):
+        began = time.time()
+        until = time.monotonic() + timeout
+        while time.monotonic() < until:
+            connection = self.login_connection(credential)
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT value FROM ir_config_parameter WHERE key='odoo.ha.cron_heartbeat'"
+                    )
+                    row = cursor.fetchone()
+                    if row and float(row[0]) >= began:
+                        return
+            finally:
+                connection.close()
+            time.sleep(2)
+        raise TimeoutError('No new cron heartbeat after credential rollout')
+
+    def close(self):
+        if self.connection:
+            self.connection.close()
+        self.connection = None
+
+    def metrics(self):
+        state = self.state
+        config = state.get('configuration', {})
+        current = next(
+            (
+                g
+                for g in state.get('generations', [])
+                if g['generation'] == config.get('active_generation')
+            ),
+            None,
+        )
+        remaining = utc(current['expires_at']).timestamp() - time.time() if current else 0
+        return (
+            'odoo_secrets_enabled ' + str(int(config.get('enabled', False))) + '\n'
+            'odoo_secret_guard_last_success_timestamp_seconds '
+            + str(self.last_guard_success)
+            + '\n'
+            'odoo_secret_rotation_last_success_timestamp_seconds ' + str(self.last_success) + '\n'
+            'odoo_secret_rotation_last_error_timestamp_seconds ' + str(self.last_error) + '\n'
+            'odoo_secret_credential_remaining_seconds ' + str(remaining) + '\n'
+            'odoo_secret_rotation_in_progress '
+            + str(int(bool(state.get('operation'))))
+            + '\n'
+            + ''.join(
+                'odoo_secret_rotation_phase{phase="'
+                + phase
+                + '"} '
+                + str(int((state.get('operation') or {}).get('phase') == phase))
+                + '\n'
+                for phase in ('ISSUED', 'PUBLISHED', 'WEB_READY', 'CRON_READY')
+            )
+            + ''.join(
+                'odoo_secret_connections{role="'
+                + role
+                + '"} '
+                + str(state.get('connections', {}).get(role, 0))
+                + '\n'
+                for role in ROLES
+            )
+        ).encode()
+
+    def serve_metrics(self):
+        worker = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == '/metrics':
+                    body = worker.metrics()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
+                else:
+                    healthy = (
+                        worker.last_guard_success > time.time() - 5
+                        if worker.settings['mode'] == 'guard'
+                        else bool(worker.state)
+                        and utc(worker.state['clock']).timestamp() > time.time() - 60
+                    )
+                    body = b'ok' if healthy else b'not ready'
+                    self.send_response(200 if healthy else 503)
+                    self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        threading.Thread(
+            target=ThreadingHTTPServer(('0.0.0.0', 9117), Handler).serve_forever, daemon=True
+        ).start()
+
+    def loop(self):
+        self.serve_metrics()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, lambda *_: setattr(self, 'stopping', True))
+        while not self.stopping:
+            began = time.monotonic()
+            self.rotation_attempted = False
+            try:
+                if self.settings['mode'] == 'guard':
+                    killed = self.sql('SELECT secret_control.expire_sessions()')
+                    self.last_guard_success = time.time()
+                    if killed:
+                        emit('EXPIRED_SESSIONS_TERMINATED', count=killed)
+                    self.status()
+                else:
+                    self.status()
+                    if self.state['configuration']['enabled']:
+                        self.sql('SELECT secret_control.retire_expired()')
+                        if not self.state['operation']:
+                            try:
+                                active = self.bao(
+                                    self.settings.get('bao_path', 'kv/data/odoo-dev/odoo-db/')
+                                    + 'active'
+                                )['data']['data']
+                            except urllib.error.HTTPError as error:
+                                if error.code != 404:
+                                    raise
+                                active = None
+                            if (
+                                not active
+                                or active['generation']
+                                != self.state['configuration']['active_generation']
+                            ):
+                                self.rotate(force=True)
+                            else:
+                                self.rotate()
+                        else:
+                            self.rotate()
+                    else:
+                        self.rotate()
+            except Exception as error:
+                config = self.state.get('configuration', {})
+                current = next(
+                    (
+                        g
+                        for g in self.state.get('generations', [])
+                        if g['generation'] == config.get('active_generation')
+                    ),
+                    None,
+                )
+                due = current and utc(
+                    current['expires_at']
+                ).timestamp() - time.time() <= config.get('lead_seconds', 900)
+                if (
+                    self.settings['mode'] == 'controller'
+                    and config.get('enabled')
+                    and (self.rotation_attempted or self.state.get('operation') or due)
+                ):
+                    self.last_error = time.time()
+                emit('WORKER_RETRY', kind=type(error).__name__)
+                self.close()
+            interval = 1 if self.settings['mode'] == 'guard' else 30
+            while not self.stopping and time.monotonic() - began < interval:
+                time.sleep(0.2)
+        self.close()
+
+
+if __name__ == '__main__':
+    Worker(json.loads(Path('/opt/odoo-secrets/settings.json').read_text())).loop()

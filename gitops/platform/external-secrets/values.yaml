@@ -1,0 +1,75 @@
+external-secrets:
+  fullnameOverride: external-secrets
+  replicaCount: 2
+  leaderElect: true
+  image: &id001
+    repository: ghcr.io/external-secrets/external-secrets
+    tag: v2.12.0@sha256:124cbfc50de67babf8c124e1785fd4ff15e743b659dfab38371c0cab7cb43bf9
+    pullPolicy: IfNotPresent
+  installCRDs: false
+  scopedNamespace: odoo-dev
+  scopedRBAC: true
+  processClusterStore: false
+  processClusterExternalSecret: false
+  processPushSecret: false
+  processClusterPushSecret: false
+  processClusterGenerator: false
+  rbac:
+    serviceAccountTokenCreate: false
+    aggregateToView: false
+    aggregateToEdit: false
+    aggregateToAdmin: false
+    servicebindings:
+      create: false
+    create: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/control-plane
+            operator: DoesNotExist
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: external-secrets
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: monitoring
+  webhook:
+    image: *id001
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    secretAnnotations:
+      argocd.argoproj.io/hook: Skip
+  certController:
+    image: *id001
+    rbac:
+      create: false
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi

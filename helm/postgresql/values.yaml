@@ -1,0 +1,20 @@
+image: docker.io/library/postgres:17.11-bookworm@sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826
+imagePullPolicy: IfNotPresent
+database: odoo_dev
+applicationUser: odoo
+adminSecret: postgres-admin
+applicationSecret: odoo-database
+storage:
+  size: 10Gi
+  className: ''
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: '1'
+    memory: 1Gi
+nodeSelector: {}
+metrics:
+  enabled: false
+replicaCount: 1

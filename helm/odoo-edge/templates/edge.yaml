@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: odoo-edge}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  selector:
+    matchLabels: {app: odoo-edge}
+  template:
+    metadata:
+      labels: {app: odoo-edge}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 90
+      securityContext: {runAsUser: 1000, runAsGroup: 1000, runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - {key: node-role.kubernetes.io/control-plane, operator: DoesNotExist}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector: {matchLabels: {app: odoo-edge}}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          minDomains: 2
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector: {matchLabels: {app: odoo-edge}}
+      containers:
+        - name: haproxy
+          image: {{ .Values.image }}
+          args: [haproxy, -W, -db, -f, /usr/local/etc/haproxy/haproxy.cfg]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          ports: [{name: http, containerPort: 8080}, {name: metrics, containerPort: 9090}]
+          readinessProbe: {httpGet: {path: /_edge/ready, port: http}, periodSeconds: 2, timeoutSeconds: 1}
+          livenessProbe: {httpGet: {path: /_edge/ready, port: http}, periodSeconds: 15, timeoutSeconds: 1}
+          volumeMounts:
+            - {name: config, mountPath: /usr/local/etc/haproxy, readOnly: true}
+      volumes:
+        - {name: config, configMap: {name: odoo-edge}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: odoo-edge, labels: {app: odoo-edge}}
+spec:
+  type: {{ .Values.serviceType }}
+  {{- if eq .Values.serviceType "NodePort" }}
+  externalTrafficPolicy: Local
+  {{- end }}
+  selector: {app: odoo-edge}
+  ports:
+    - {name: http, port: 8080, targetPort: http{{ if eq .Values.serviceType "NodePort" }}, nodePort: {{ .Values.nodePort }}{{ end }}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: odoo-edge-metrics, labels: {app: odoo-edge-metrics}}
+spec:
+  selector: {app: odoo-edge}
+  ports: [{name: metrics, port: 9090, targetPort: metrics}]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: odoo-edge}
+spec:
+  minAvailable: 1
+  selector: {matchLabels: {app: odoo-edge}}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: odoo-edge}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ipBlock: {cidr: {{ .Values.entryCIDR }}}}]
+      ports: [{protocol: TCP, port: 8080}]
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
+      ports: [{protocol: TCP, port: 9090}]
+  egress:
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+          podSelector: {matchLabels: {k8s-app: kube-dns}}
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: {{ .Values.backendNamespace }}}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: odoo, odoo.io/component: server}}
+      ports: [{protocol: TCP, port: 8069}, {protocol: TCP, port: 8072}, {protocol: TCP, port: 9116}]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata: {name: odoo-edge}
+spec:
+  selector: {matchLabels: {app: odoo-edge-metrics}}
+  endpoints: [{port: metrics, interval: 5s}]

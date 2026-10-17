@@ -1,0 +1,98 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: operator-api
+  namespace: postgres-ha
+spec:
+  endpointSelector:
+    matchLabels:
+      postgres-operator.crunchydata.com/control-plane: pgo
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: '443'
+        protocol: TCP
+      - port: '6443'
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: patroni-api
+  namespace: postgres-ha
+spec:
+  endpointSelector:
+    matchExpressions:
+    - key: postgres-operator.crunchydata.com/instance
+      operator: Exists
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: '443'
+        protocol: TCP
+      - port: '6443'
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: backup-job-api
+  namespace: postgres-ha
+spec:
+  endpointSelector:
+    matchExpressions:
+    - key: postgres-operator.crunchydata.com/pgbackrest-backup
+      operator: Exists
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: '443'
+        protocol: TCP
+      - port: '6443'
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: restore-job-api
+  namespace: postgres-ha
+spec:
+  endpointSelector:
+    matchExpressions:
+    - key: postgres-operator.crunchydata.com/pgbackrest-restore
+      operator: Exists
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: '443'
+        protocol: TCP
+      - port: '6443'
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: repository-config-api
+  namespace: postgres-ha
+spec:
+  endpointSelector:
+    matchExpressions:
+    - key: postgres-operator.crunchydata.com/pgbackrest-dedicated
+      operator: Exists
+  egress:
+  - toEntities:
+    - kube-apiserver
+    toPorts:
+    - ports:
+      - port: '443'
+        protocol: TCP
+      - port: '6443'
+        protocol: TCP
