@@ -38,7 +38,7 @@ jobs:
         run: .tools/bin/gitleaks git --redact --no-banner --log-opts=--all
       - name: Upload validation evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: static-evidence
           path: |
@@ -86,7 +86,7 @@ jobs:
         run: python3 scripts/report.py ci-integration bash tests/ci/integration.sh
       - name: Upload sanitized integration evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: integration-evidence
           path: |
